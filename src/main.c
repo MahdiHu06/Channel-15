@@ -144,6 +144,10 @@ void cmd_gpio(int argc, char **argv) {
 
 /* main */
 int main() {
+    // for laptop use
+    stdio_usb_init();
+    
+    /* UART initializations */
     init_uart();
     init_uart_irq();
 
@@ -158,12 +162,11 @@ int main() {
     char *argv[10];
     char input[100];
 
+    /* MCU-loop code */
     for (;;) {
         printf("\r\n>");
         fgets(input, sizeof(input), stdin);
-        
-        // This is needed
-        fflush(stdin);
+        fflush(stdin);  // This is needed
         
         // replace new line with null
         size_t j = strcspn(input, '\n');
