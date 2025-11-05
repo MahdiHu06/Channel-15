@@ -1,6 +1,7 @@
 {
     "files.associations": {
         "i2c.h": "c",
-        "uart.h": "c"
+        "uart.h": "c",
+        "stdlib.h": "c"
     }
 }

@@ -1,13 +1,30 @@
-#include "main.h"
-#include "uart.h"
-#include "i2c.h"
+#include <stdio.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+
+// MCU includes
+#include "pico/stdlib.h"
+#include "hardware/i2c.h"
+#include "hardware/uart.h"
 ////////////////////////////////////////////////////////////////////////
 
-// Copy global variables, init_uart_irq, uart_rx_handler, _read, and _write from STEP4.
+// functions
+void init_i2c();
+void init_uart();
+void init_uart_irq();
+void uart_rx_handler();
+
+// Definitions and global variables
 #define BUFSIZE 32
 char serbuf[BUFSIZE];
 int seridx = 0;
 int newline_seen = 0;
+
+// Pin numbers for I2C
+uint i2c_SDA = 26;
+uint i2c_SCL = 27;
+i2c_inst_t *i2c = i2c1;
 
 /* Uart Initilization */
 void init_uart(){
@@ -63,6 +80,13 @@ int _write(__unused int handle, char *buffer, int length) {
     return length;
 }
 
+/* Initializing I2C */
+void init_i2c() {
+    i2c_init(i2c, 115200);
+    gpio_set_function(i2c_SDA, GPIO_FUNC_I2C);
+}
+
+
 /* Copied over from lab 7 */
 void cmd_gpio(int argc, char **argv) {
     if (argc < 2) {
@@ -110,6 +134,7 @@ void cmd_gpio(int argc, char **argv) {
     printf("Unknown command: \n");
 }
 
+
 /* main */
 int main() {
     init_uart();
@@ -118,7 +143,7 @@ int main() {
     setbuf(stdout, NULL); // Disable buffering for stdout
 
     // Welcome message
-    printf("Mahdi's Peripheral Command Shell (PCS)\n");
+    printf("Channel-15's Peripheral Command Shell (PCS)\n");
     printf("Enter a command below.\n\n");
 
     // Inputs
