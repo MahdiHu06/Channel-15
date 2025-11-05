@@ -84,6 +84,12 @@ int _write(__unused int handle, char *buffer, int length) {
 void init_i2c() {
     i2c_init(i2c, 115200);
     gpio_set_function(i2c_SDA, GPIO_FUNC_I2C);
+    gpio_set_function(i2c_SCL, GPIO_FUNC_I2C);
+    gpio_pull_up(i2c_SDA);
+    gpio_pull_up(i2c_SCL);
+
+    // Make the I2C pins available to picotool.... this is on the datasheet
+    bi_decl(bi_2pins_with_func(i2c_SDA, i2c_SCL, GPIO_FUNC_I2C));
 }
 
 
