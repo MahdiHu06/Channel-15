@@ -2,6 +2,7 @@
     "files.associations": {
         "i2c.h": "c",
         "uart.h": "c",
-        "stdlib.h": "c"
+        "stdlib.h": "c",
+        "binary_info.h": "c"
     }
 }
