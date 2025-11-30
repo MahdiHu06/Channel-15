@@ -51,8 +51,19 @@ int main() {
 
     State currentState = STATE_MENU;
 
-    uint8_t highlight = 0;
-    menu(highlight);
+    uint8_t historicalDataViewType = 0;
+    bool ticks = true;
+
+    uint8_t menuHighlight = 0;
+    uint8_t settingsHighlight = 0;
+    bool editLock = false;
+    menu(menuHighlight);
+
+    int asyncPollInterval = 10000000;
+    int livePollInterval = 10000000;
+
+    static uint64_t lastUpdate = 0;
+    uint64_t now = time_us_64();
 
     while (true) {
         uint16_t keyevent = key_pop();
@@ -62,28 +73,32 @@ int main() {
             if (keyevent & 0x100) {
                 char key = keyevent & 0xFF;
                 if (key == '2') {
-                    highlight = (highlight + 3) % 4;
-                    menu(highlight);
+                    menuHighlight = (menuHighlight + 3) % 4;
+                    menu(menuHighlight);
                 } else if (key == '8') {
-                    highlight = (highlight + 1) % 4;
-                    menu(highlight);
+                    menuHighlight = (menuHighlight + 1) % 4;
+                    menu(menuHighlight);
                 } else if (key == '5') {
-                    switch (highlight) {
+                    switch (menuHighlight) {
                     case 0:
                         currentState = STATE_LIVE_DATA;
-                        LCD_Clear(LGRAY);
+                        // LCD_Clear(LGRAY);
+                        liveDataInit();
                         break;
                     case 1:
                         currentState = STATE_HISTORICAL_DATA;
-                        LCD_Clear(GREEN);
+                        // LCD_Clear(GREEN);
+                        historicalData(true, 0);
                         break;
                     case 2:
                         currentState = STATE_SETTINGS;
-                        LCD_Clear(MAGENTA);
+                        // LCD_Clear(MAGENTA);
+                        settings(settingsHighlight, false, &asyncPollInterval, &livePollInterval);
                         break;
                     case 3:
                         currentState = STATE_ABOUT;
-                        LCD_Clear(BLUE);
+                        // LCD_Clear(BLUE);
+                        about();
                         break;
                     }
                 }
@@ -92,11 +107,18 @@ int main() {
         
         case STATE_LIVE_DATA:
             // TODO: Implement live data display
+            now = time_us_64();
+
+             if (now - lastUpdate > livePollInterval) {
+                liveDataUpdate();
+                lastUpdate = now;
+            }
+            
             if (keyevent & 0x100) {
                 char key = keyevent & 0xFF;
                 if (key == '1') {
                     currentState = STATE_MENU;
-                    menu(highlight);
+                    menu(menuHighlight);
                 }
             }
             break;
@@ -107,7 +129,16 @@ int main() {
                 char key = keyevent & 0xFF;
                 if (key == '1') {
                     currentState = STATE_MENU;
-                    menu(highlight);
+                    menu(menuHighlight);
+                } else if (key == '2') {
+                    historicalDataViewType = (historicalDataViewType + 2) % 3;
+                    historicalData(ticks, historicalDataViewType);
+                } else if (key == '8') {
+                    historicalDataViewType = (historicalDataViewType + 1) % 3;
+                    historicalData(ticks, historicalDataViewType);
+                } else if (key == '5') {
+                    ticks = !ticks;
+                    historicalData(ticks, historicalDataViewType);
                 }
             }
             break;
@@ -116,9 +147,44 @@ int main() {
             // TODO: Implement settings display
             if (keyevent & 0x100) {
                 char key = keyevent & 0xFF;
-                if (key == '1') {
-                    currentState = STATE_MENU;
-                    menu(highlight);
+
+                if (editLock) {
+                    if (key == '2') {
+                        if (settingsHighlight == 0) {
+                            asyncPollInterval += 1000000;
+                        } else if (settingsHighlight == 1) {
+                            livePollInterval += 1000000;
+                        }
+                        settings(settingsHighlight, true, &asyncPollInterval, &livePollInterval);
+                    } else if (key == '8') {
+                        if (settingsHighlight == 0) {
+                            if (asyncPollInterval > 1000000) {
+                                asyncPollInterval -= 1000000;
+                            }
+                        } else if (settingsHighlight == 1) {
+                            if (livePollInterval > 1000000) {
+                                livePollInterval -= 1000000;
+                            }
+                        }
+                        settings(settingsHighlight, true, &asyncPollInterval, &livePollInterval);
+                    } else if (key == '5') {
+                        editLock = false;
+                        settings(settingsHighlight, false, &asyncPollInterval, &livePollInterval);
+                    }
+                } else {
+                    if (key == '1') {
+                        currentState = STATE_MENU;
+                        menu(menuHighlight);
+                    } else if (key == '2') {
+                        settingsHighlight = (settingsHighlight + 3) % 2;
+                        settings(settingsHighlight, false, &asyncPollInterval, &livePollInterval);
+                    } else if (key == '8') {
+                        settingsHighlight = (settingsHighlight + 1) % 2;
+                        settings(settingsHighlight, false, &asyncPollInterval, &livePollInterval);
+                    } else if (key == '5') {
+                        settings(settingsHighlight, !editLock, &asyncPollInterval, &livePollInterval);
+                        editLock = !editLock;
+                    }
                 }
             }
             break;
@@ -129,7 +195,7 @@ int main() {
                 char key = keyevent & 0xFF;
                 if (key == '1') {
                     currentState = STATE_MENU;
-                    menu(highlight);
+                    menu(menuHighlight);
                 }
             }
             break;

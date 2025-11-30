@@ -899,3 +899,56 @@ void LCD_DrawPicture(u16 x0, u16 y0, const Picture *pic)
     LCD_WriteData16_End();
     lcddev.select(0);
 }
+
+void _LCD_DrawCharRotated(u16 x, u16 y, u16 fc, u16 bc, char num, u8 size, u8 mode)
+{
+    u8 temp;
+    u8 pos, t;
+    num = num - ' ';
+    
+    LCD_SetWindow(x, y, x + size - 1, y + size/2 - 1);
+    
+    if (!mode) {
+        LCD_WriteData16_Prepare();
+        for (t = size/2 - 1; t < size/2; t--) {
+            for (pos = 0; pos < size; pos++) {
+                if (size == 12)
+                    temp = asc2_1206[(int)num][pos];
+                else
+                    temp = asc2_1608[(int)num][pos];
+                
+                if ((temp >> t) & 0x01)
+                    LCD_WriteData16(fc);
+                else
+                    LCD_WriteData16(bc);
+            }
+        }
+        LCD_WriteData16_End();
+    } else {
+        for (t = size/2 - 1; t < size/2; t--) {
+            for (pos = 0; pos < size; pos++) {
+                if (size == 12)
+                    temp = asc2_1206[(int)num][pos];
+                else
+                    temp = asc2_1608[(int)num][pos];
+                
+                if ((temp >> t) & 0x01)
+                    _LCD_DrawPoint(x + pos, y + (size/2 - 1 - t), fc);
+            }
+        }
+    }
+}
+
+void LCD_DrawStringRotated(u16 x, u16 y, u16 fc, u16 bg, const char *p, u8 size, u8 mode)
+{
+    lcddev.select(1);
+    while((*p <= '~') && (*p >= ' '))
+    {
+        if(x > (lcddev.width - 1) || y > (lcddev.height - 1))
+            return;
+        _LCD_DrawCharRotated(x, y, fc, bg, *p, size, mode);
+        y -= size/2;
+        p++;
+    }
+    lcddev.select(0);
+}
