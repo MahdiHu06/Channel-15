@@ -260,7 +260,7 @@ float calculate_humidity(int32_t adc_H) {
 }
 
 /* Functions for reading */
-void read_temp(int8_t bme_addr) {
+float read_temp(int8_t bme_addr) {
     uint8_t raw_temp_data[3];
     bme_read_bytes(bme_addr, BME280_REGISTER_TEMPDATA, raw_temp_data, 3);
     int32_t temp_data = ((int32_t)raw_temp_data[0] << 12) | ((int32_t)raw_temp_data[1] << 4) | ((int32_t)raw_temp_data[2] >> 4);
@@ -270,17 +270,21 @@ void read_temp(int8_t bme_addr) {
     float temp = calculate_temp(temp_data, isF);
     char rep = isF ? 'F' : 'C';
     printf("Temp: %.2f °%c\n", temp, rep);
+
+    return temp;
 }
-void read_pressure(int8_t bme_addr) {
+float read_pressure(int8_t bme_addr) {
     uint8_t raw_pressure_data[3];
     bme_read_bytes(bme_addr, BME280_REGISTER_PRESSUREDATA, raw_pressure_data, 3);
     int32_t pressure_data = ((int32_t)raw_pressure_data[0] << 12) | ((int32_t)raw_pressure_data[1] << 4) | ((int32_t)raw_pressure_data[2] >> 4);
     float pressure = calculate_pressure(pressure_data);
     pressure /= 1000;
     printf("Pressure: %.2f kP\n", pressure);
+
+    return pressure;
 }
 
-void read_humidity(int8_t bme_addr) {
+float read_humidity(int8_t bme_addr) {
     uint8_t raw_humidity_data[2];
     bme_read_bytes(bme_addr, BME280_REGISTER_HUMIDDATA, raw_humidity_data, 2);
 
@@ -288,6 +292,8 @@ void read_humidity(int8_t bme_addr) {
     float humidity = calculate_humidity(adc_H);   // %RH
 
     printf("Humidity: %.2f%%\n", humidity);
+
+    return humidity;
 }
 
 ////////////////////////////////////////////////////////////////////////
@@ -476,27 +482,10 @@ int main(void) {
     audio_mode_t last = AUDIO_IDLE;
 
     for (;;) {
-        uint8_t raw_temp_data[3];
-        bme_read_bytes(bme_addr, BME280_REGISTER_TEMPDATA, raw_temp_data, 3);
-        int32_t adc_T = ((int32_t)raw_temp_data[0] << 12) | ((int32_t)raw_temp_data[1] << 4) | ((int32_t)raw_temp_data[2] >> 4);
 
-        uint8_t raw_pressure_data[3];
-        bme_read_bytes(bme_addr, BME280_REGISTER_PRESSUREDATA, raw_pressure_data, 3);
-        int32_t adc_P = ((int32_t)raw_pressure_data[0] << 12) | ((int32_t)raw_pressure_data[1] << 4) | ((int32_t)raw_pressure_data[2] >> 4);
-
-        uint8_t raw_humidity_data[2];
-        bme_read_bytes(bme_addr, BME280_REGISTER_HUMIDDATA, raw_humidity_data, 2);
-        int32_t adc_H = ((int32_t)raw_humidity_data[0] << 8) | ((int32_t)raw_humidity_data[1]);
-
-        float temp_c = calculate_temp(adc_T, 0);
-        float pressure_pa = calculate_pressure(adc_P);
-        float pressure_kpa = pressure_pa / 1000.0f;
-        float humidity_rh = calculate_humidity(adc_H);
-
-        printf("Temp: %.2f C\n", temp_c);
-        printf("Pressure: %.2f kP\n", pressure_kpa);
-        printf("Humidity: %.2f%%\n", humidity_rh);
-        printf("-----------------------------------------------\n");
+        float temp_c = read_temp(bme_addr);
+        float pressure_kpa = read_pressure(bme_addr);
+        float humidity_rh = read_humidity(bme_addr);
 
         audio_mode_t want = AUDIO_IDLE;
 
