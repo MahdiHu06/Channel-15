@@ -431,9 +431,9 @@ static void pwm_tick_irq(void) {
 ////////////////////////////////////////////////////////////////////////
 
 // TODO: tune thresholds values so that they reflect what we want
-#define TEMP_C_THRESHOLD_HIGH      28.0f
-#define PRESSURE_KPA_THRESHOLD_LOW 100.5f
-#define HUMIDITY_RH_THRESHOLD_HIGH 70.0f
+#define TEMP_C_THRESHOLD_HIGH      32.2f //90 degrees farenheit
+#define PRESSURE_KPA_THRESHOLD_LOW 100.9f //signals potential precipitation
+#define HUMIDITY_RH_THRESHOLD_HIGH 60.0f //level that indicates humidity is high
 
 int main(void) {
     init_uart();
@@ -477,7 +477,7 @@ int main(void) {
     irq_set_enabled(PWM_IRQ_WRAP_0, true);
     pwm_set_enabled(tick_slice, true);
 
-    uart_puts_string("READY");
+    uart_puts_string("READY TO READ...");
 
     audio_mode_t last = AUDIO_IDLE;
 
@@ -503,13 +503,13 @@ int main(void) {
             last = want;
 
             if (want == AUDIO_TEMP) {
-                uart_puts_string("ALERT: TEMP");
+                uart_puts_string("\n!!!ALERT: TEMP HAS EXCEEDED 90 DEGREES FARENHEIT!!!\n");
                 audio_request(AUDIO_TEMP);
             } else if (want == AUDIO_PRESSURE) {
-                uart_puts_string("ALERT: PRESSURE");
+                uart_puts_string("\n!!!ALERT: PRESSURE HAS REACHED LEVELS SIGNALING PRECIPITATION!!!\n");
                 audio_request(AUDIO_PRESSURE);
             } else if (want == AUDIO_HUMID) {
-                uart_puts_string("ALERT: HUMIDITY");
+                uart_puts_string("\n!!!ALERT: HUMIDITY HAS PASSED 60 PERCENT!!!\n");
                 audio_request(AUDIO_HUMID);
             } else {
                 uart_puts_string("ALERT: IDLE");
