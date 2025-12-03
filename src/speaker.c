@@ -99,13 +99,14 @@ static void pwm_tick_irq(void) {
 ////////////////////////////////////////////////////////////////////////
 
 // TODO: tune thresholds values so that they reflect what we want
-#define TEMP_C_THRESHOLD_HIGH      32.2f //90 degrees farenheit
+#define TEMP_F_THRESHOLD_HIGH      90.0f //90 degrees farenheit
 #define PRESSURE_KPA_THRESHOLD_LOW 100.9f //signals potential precipitation
 #define HUMIDITY_RH_THRESHOLD_HIGH 60.0f //level that indicates humidity is high
 
 
 
 ///////////////////////////////////////////////////////////////////////
+ int speaker_run() {
     for (;;) {
         uint8_t request_buf[1];
         request_buf[0] = 0x07; // Request all data
@@ -116,10 +117,10 @@ static void pwm_tick_irq(void) {
         uint8_t response_len;
         receivePacketRaw_blocking(RADIO_SPI_CSN_PIN, response_buf, &response_len);
         float pressure_kpa = 0;
-        float temp_c = 0;
+        float temp_f = 0;
         float humidity_rh = 0;
         if (response_len == 13 && response_buf[0] == 0x07) {
-            memcpy(&temp_c,     &response_buf[1],  sizeof(float));
+            memcpy(&temp_f,     &response_buf[1],  sizeof(float));
             memcpy(&pressure_kpa, &response_buf[5],  sizeof(float));
             memcpy(&humidity_rh, &response_buf[9],  sizeof(float));
         }
@@ -130,7 +131,7 @@ static void pwm_tick_irq(void) {
             want = AUDIO_HUMID;
         } else if (pressure_kpa <= PRESSURE_KPA_THRESHOLD_LOW) {
             want = AUDIO_PRESSURE;
-        } else if (temp_c >= TEMP_C_THRESHOLD_HIGH) {
+        } else if (temp_c >= TEMP_F_THRESHOLD_HIGH) {
             want = AUDIO_TEMP;
         } else {
             want = AUDIO_IDLE;
@@ -155,3 +156,5 @@ static void pwm_tick_irq(void) {
         }
         sleep_ms(1000);
     }
+    return 0;
+}
