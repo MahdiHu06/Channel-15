@@ -252,6 +252,8 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
     
     int total_len = length + 2;
     int retry = 0;
+
+    printf("TX: Sending seq %d\n", packet[2]);
     
     while (true) {
         // Send the packet
