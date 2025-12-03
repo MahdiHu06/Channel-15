@@ -222,6 +222,7 @@ bool receivePacketRaw_blocking(uint CS, uint8_t *result, uint8_t *length) {
             }
 
             *length = packetLength;
+            printf("RX: Packet Length: %d\n", packetLength);
             spi_read_blocking(spi1, 0, result, packetLength);
 
             gpio_put(CS, 1);
