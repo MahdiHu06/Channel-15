@@ -53,7 +53,23 @@ void liveDataUpdate(void) {
 
     uint8_t response_buf[13];
     uint8_t response_len;
-    receivePacketRaw_blocking(RADIO_SPI_CSN_PIN, response_buf, &response_len);
+    
+    
+    // Use non-blocking with timeout (e.g., 500ms)
+    if (!receivePacketRaw(RADIO_SPI_CSN_PIN, response_buf, &response_len, 500)) {
+        // No response received - display error or keep old values
+        printf("No response from sensor\n");
+        return;
+    }
+
+    // Check if it's a DATA packet and strip header
+    if (response_len < 2 || response_buf[0] != PKT_TYPE_DATA) {
+        printf("Invalid response packet\n");
+        return;
+    }
+
+    uint8_t *payload = &response_buf[2];
+    uint8_t payload_len = response_len - 2;
 
     float pressure = 0;
     float temp = 0;
@@ -62,6 +78,9 @@ void liveDataUpdate(void) {
         memcpy(&temp,     &response_buf[1],  sizeof(float));
         memcpy(&pressure, &response_buf[5],  sizeof(float));
         memcpy(&humidity, &response_buf[9],  sizeof(float));
+    } else {
+        printf("Unexpected payload length: %d\n", payload_len);
+        return;
     }
 
     LCD_DrawFillRectangle(10, 40, 240, 70, 0x0000);
