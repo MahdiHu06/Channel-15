@@ -37,7 +37,6 @@ int main() {
         startRadioReceive(RADIO_SPI_CSN_PIN);
 
         while (true) {
-            // Add a heartbeat to confirm the loop is running
             static int count = 0;
             if (++count % 1000 == 0) {
                 printf("Still waiting... (irq2=0x%02X)\n", readRegister(RADIO_SPI_CSN_PIN, 0x28));
@@ -50,7 +49,6 @@ int main() {
             
             printf("Received Packet of Length %d\n", length);
             
-            // Check if it's a DATA packet (has at least 2 byte header)
             if (length >= 2 && buffer[0] == PKT_TYPE_DATA) {
                 uint8_t seq_num = buffer[1];
                 uint8_t *payload = &buffer[2];      // Payload starts at byte 2
@@ -58,22 +56,19 @@ int main() {
                 
                 printf("RX: Got DATA seq %d, payload_len %d\n", seq_num, payload_len);
                 
-                // Send ACK immediately (IMPORTANT!)
+                // Send ACK immediately
                 sendAck(RADIO_SPI_CSN_PIN, seq_num);
                 printf("RX: Sent ACK for seq %d\n", seq_num);
                 
-                // Now process the payload
                 if (payload_len >= 1) {
                     uint8_t request_type = payload[0];
                     printf("Request Type: 0x%02X\n", request_type);
                     
-                    // Build response
                     uint8_t send_buf[13];
                     int send_len = 1;
                     send_buf[0] = request_type;
                     
                     if ((request_type & 0x07) == 0x07) {
-                        // All three requested
                         float temp = read_temp(bme_addr);
                         float pressure = read_pressure(bme_addr);
                         float humidity = read_humidity(bme_addr);
@@ -103,12 +98,10 @@ int main() {
                     sendPacketRaw(RADIO_SPI_CSN_PIN, response_packet, send_len + 2);
                     printf("TX: Sent response\n");
                     
-                    // Restart receive mode
                     startRadioReceive(RADIO_SPI_CSN_PIN);
                 }
             }
             
-            // Restart receive mode
             startRadioReceive(RADIO_SPI_CSN_PIN);
         }
     }

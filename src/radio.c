@@ -74,7 +74,7 @@ void configRadio(uint CS) {
     // Data modulation: Packet mode, FSK, Gaussian filter BT=1.0
     writeRegister(CS, 0x02, 0x00);
 
-    // Bitrate: 4.8 kbps (faster than 1.2 kbps)
+    // Bitrate: 4.8 kbps
     writeRegister(CS, 0x03, 0x1A);
     writeRegister(CS, 0x04, 0x0B);
 
@@ -99,7 +99,7 @@ void configRadio(uint CS) {
     // LNA: max gain
     writeRegister(CS, 0x18, 0x08);
 
-    // RxBw: 62.5 kHz (wider for faster bitrate)
+    // RxBw: 62.5 kHz
     writeRegister(CS, 0x19, 0x42);
 
     // AFC Bw: 125 kHz
@@ -108,7 +108,7 @@ void configRadio(uint CS) {
     // RSSI threshold
     writeRegister(CS, 0x29, 0xE4);
 
-    // Preamble: 8 bytes (shorter for faster sync)
+    // Preamble: 8 bytes
     writeRegister(CS, 0x2C, 0x00);
     writeRegister(CS, 0x2D, 0x08);
 
@@ -248,7 +248,6 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
     uint8_t response[64];
     uint8_t resp_len;
     
-    // Build packet
     packet[0] = PKT_TYPE_DATA;
     packet[1] = tx_seq_num;
     memcpy(&packet[2], payload, length);
@@ -257,14 +256,11 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
     int retry = 0;
     
     while (true) {
-        // Send the packet
         sendPacketRaw(CS_TX, packet, total_len);
         
         startRadioReceive(CS_RX);
         
-        // Wait for ACK with shorter timeout
         if (receivePacketRaw(CS_RX, response, &resp_len, 100)) {
-            // Check if it's an ACK for our sequence number
             if (resp_len >= 2 && 
                 response[0] == PKT_TYPE_ACK && 
                 response[1] == tx_seq_num) {
@@ -298,14 +294,14 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
 void sendResponse(uint CS, uint8_t *payload, int length) {
     uint8_t packet[66];
     
-    // Build packet (use same seq_num as request)
+
     packet[0] = PKT_TYPE_DATA;
-    packet[1] = last_rx_seq;  // Echo the received sequence number
+    packet[1] = last_rx_seq;
     memcpy(&packet[2], payload, length);
     
     sendPacketRaw(CS, packet, length + 2);
     
-    // Go back to receive mode
+
     startRadioReceive(CS);
 }
 
