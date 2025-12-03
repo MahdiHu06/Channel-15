@@ -25,5 +25,6 @@ bool receivePacketRaw_blocking(uint CS, uint8_t *result, uint8_t *length);
 bool receivePacketRaw(uint CS, uint8_t *result, uint8_t *length, int timeout_ms);
 void sendAck(uint CS, uint8_t seq_num);
 void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length);
+void sendResponse(uint CS, uint8_t *payload, int length);
 
 void checkRadio(int cs);

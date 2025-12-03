@@ -33,10 +33,16 @@ int main() {
 
     // Begin Main Loop
     while (true) {
-        // Start Radio Receive
+        printf("Waiting for packets...\n");
         startRadioReceive(RADIO_SPI_CSN_PIN);
 
         while (true) {
+            // Add a heartbeat to confirm the loop is running
+            static int count = 0;
+            if (++count % 1000 == 0) {
+                printf("Still waiting... (irq2=0x%02X)\n", readRegister(RADIO_SPI_CSN_PIN, 0x28));
+            }
+            
             uint8_t buffer[64];
             uint8_t length;
             

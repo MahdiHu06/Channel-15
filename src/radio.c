@@ -227,12 +227,16 @@ bool receivePacketRaw_blocking(uint CS, uint8_t *result, uint8_t *length) {
             if (packetLength == 0 || packetLength > 64) {
                 gpio_put(CS, 1);
                 startRadioReceive(CS);
-                continue; // Try again
+                continue;
             }
 
             *length = packetLength;
             printf("RX: Packet Length: %d\n", packetLength);
             spi_read_blocking(spi1, 0, result, packetLength);
+
+            if (packetLength >= 2 && result[0] == PKT_TYPE_DATA) {
+                last_rx_seq = result[1];
+            }
 
             gpio_put(CS, 1);
             return true;
@@ -300,6 +304,18 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
         
         sleep_ms(10 + (retry % 10) * 5);
     }
+}
+
+void sendResponse(uint CS, uint8_t *payload, int length) {
+    uint8_t packet[66];
+    
+    packet[0] = PKT_TYPE_DATA;
+    packet[1] = last_rx_seq;
+    memcpy(&packet[2], payload, length);
+    
+    sendPacketRaw(CS, packet, length + 2);
+    
+    startRadioReceive(CS);
 }
 
 void checkRadio(int cs) {
