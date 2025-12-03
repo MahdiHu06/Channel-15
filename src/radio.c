@@ -71,16 +71,16 @@ void configRadio(uint CS) {
     // Clear FIFO
     writeRegister(CS, 0x28, 0x10);
 
-    // Data modulation: Packet mode, FSK, Gaussian filter BT=0.5 (better for range)
-    writeRegister(CS, 0x02, 0x02);
+    // Data modulation: Packet mode, FSK, Gaussian filter BT=1.0
+    writeRegister(CS, 0x02, 0x00);
 
-    // Bitrate: 1.2 kbps (slower = better range)
-    writeRegister(CS, 0x03, 0x68);
-    writeRegister(CS, 0x04, 0x2B);
+    // Bitrate: 4.8 kbps (faster than 1.2 kbps)
+    writeRegister(CS, 0x03, 0x1A);
+    writeRegister(CS, 0x04, 0x0B);
 
-    // Frequency deviation: 5 kHz (narrower = better sensitivity)
-    writeRegister(CS, 0x05, 0x00);
-    writeRegister(CS, 0x06, 0x52);
+    // Frequency deviation: 25 kHz
+    writeRegister(CS, 0x05, 0x01);
+    writeRegister(CS, 0x06, 0x9A);
 
     // Frequency: 915 MHz
     writeRegister(CS, 0x07, 0xE4);
@@ -90,39 +90,34 @@ void configRadio(uint CS) {
     // PA config - max power (+20 dBm with PA_BOOST)
     writeRegister(CS, 0x11, 0x9F);
 
-    // PA ramp time - slower ramp for cleaner signal
+    // PA ramp time
     writeRegister(CS, 0x12, 0x09);
 
     // OCP - enable with higher limit
     writeRegister(CS, 0x13, 0x2B);
 
-    // LNA: max gain, no AGC (fixed high gain)
+    // LNA: max gain
     writeRegister(CS, 0x18, 0x08);
 
-    // RxBw: 10.4 kHz (narrower = better sensitivity)
-    writeRegister(CS, 0x19, 0x55);
+    // RxBw: 62.5 kHz (wider for faster bitrate)
+    writeRegister(CS, 0x19, 0x42);
 
-    // AFC Bw: 20.8 kHz
-    writeRegister(CS, 0x1A, 0x4A);
+    // AFC Bw: 125 kHz
+    writeRegister(CS, 0x1A, 0x42);
 
-    // AFC auto on, auto clear
-    writeRegister(CS, 0x1E, 0x2C);
+    // RSSI threshold
+    writeRegister(CS, 0x29, 0xE4);
 
-    // RSSI threshold - very sensitive
-    writeRegister(CS, 0x29, 0xFF);
-
-    // Preamble: 64 bytes (longer = more reliable sync)
+    // Preamble: 8 bytes (shorter for faster sync)
     writeRegister(CS, 0x2C, 0x00);
-    writeRegister(CS, 0x2D, 0x40);
+    writeRegister(CS, 0x2D, 0x08);
 
-    // Sync config: on, 4 bytes, allow 1 bit error
-    writeRegister(CS, 0x2E, 0x99);
+    // Sync config: on, 2 bytes
+    writeRegister(CS, 0x2E, 0x88);
     writeRegister(CS, 0x2F, 0x2D);
     writeRegister(CS, 0x30, 0xD4);
-    writeRegister(CS, 0x31, 0x2D);
-    writeRegister(CS, 0x32, 0xD4);
 
-    // Packet config 1: Variable length, CRC ON, CRC whitening
+    // Packet config 1: Variable length, CRC ON
     writeRegister(CS, 0x37, 0x90);
 
     // Payload length max
@@ -133,12 +128,6 @@ void configRadio(uint CS) {
 
     // Packet config 2: auto RX restart
     writeRegister(CS, 0x3D, 0x12);
-
-    // Sensitivity boost (improves RX sensitivity by ~3 dB)
-    writeRegister(CS, 0x58, 0x2D);
-
-    // High sensitivity mode
-    writeRegister(CS, 0x6F, 0x30);
 }
 
 void startRadioReceive(uint CS) {
