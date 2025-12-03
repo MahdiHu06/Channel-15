@@ -8,9 +8,6 @@
 #include "hardware/spi.h"
 #include "../include/radio.h"
 
-// Protocol constants
-#define PKT_TYPE_DATA   0x01
-#define PKT_TYPE_ACK    0x02
 #define ACK_TIMEOUT_MS  150
 
 static uint8_t tx_seq_num = 0;
@@ -264,7 +261,7 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
     int total_len = length + 2;
     int retry = 0;
 
-    printf("TX: Sending seq %d\n", packet[2]);
+    printf("TX: Sending seq %d\n", tx_seq_num);
     
     while (true) {
         // Send the packet
