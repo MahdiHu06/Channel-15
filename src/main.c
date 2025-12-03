@@ -52,6 +52,8 @@ int main() {
     configRadio(RADIO_SPI_CSN_PIN);
 
     checkRadio(RADIO_SPI_CSN_PIN);
+    
+    startRadioReceive(RADIO_SPI_CSN_PIN);
 
     // Init Pins for SD
     // Config SD?

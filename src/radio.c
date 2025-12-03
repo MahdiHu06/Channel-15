@@ -141,10 +141,19 @@ void configRadio(uint CS) {
 }
 
 void startRadioReceive(uint CS) {
-    writeRegister(CS, 0x01, 0x04);
-    writeRegister(CS, 0x28, 0x10);
-    writeRegister(CS, 0x01, 0x10);
-    sleep_ms(1);
+    writeRegister(CS, 0x01, 0x04);  // Standby first
+    writeRegister(CS, 0x28, 0x10);  // Clear FIFO
+    writeRegister(CS, 0x01, 0x10);  // RX mode
+    
+    // Wait for RX mode to be ready
+    int timeout = 100;
+    while ((readRegister(CS, 0x27) & 0x80) == 0) {  // Wait for ModeReady
+        if (--timeout <= 0) {
+            printf("RX: ModeReady timeout!\n");
+            break;
+        }
+        sleep_us(100);
+    }
 }
 
 void sendPacketRaw(uint CS, uint8_t *data, int length) {
@@ -261,7 +270,7 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
     int total_len = length + 2;
     int retry = 0;
 
-    printf("TX: Sending seq %d\n", tx_seq_num);
+    printf("TX: Sending seq %d (len=%d)\n", tx_seq_num, total_len);
     
     while (true) {
         // Send the packet
@@ -271,6 +280,9 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
         
         // Wait for ACK with shorter timeout
         if (receivePacketRaw(CS_RX, response, &resp_len, 100)) {
+            printf("TX: Got response len=%d, type=0x%02X, seq=%d\n", 
+                   resp_len, response[0], resp_len >= 2 ? response[1] : 0);
+            
             // Check if it's an ACK for our sequence number
             if (resp_len >= 2 && 
                 response[0] == PKT_TYPE_ACK && 
@@ -283,6 +295,9 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
                     printf("TX: ACK for seq %d\n", tx_seq_num - 1);
                 }
                 return;
+            } else {
+                printf("TX: Wrong ACK - expected seq %d, got type=0x%02X seq=%d\n",
+                       tx_seq_num, response[0], response[1]);
             }
         }
         
