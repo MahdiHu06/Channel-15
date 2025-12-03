@@ -79,7 +79,6 @@ int main() {
     irq_set_enabled(PWM_IRQ_WRAP_0, true);
     pwm_set_enabled(tick_slice, true);
     uart_puts_string("READY TO READ...");
-    audio_mode_t last = AUDIO_IDLE;
 
     // Start Async Measurements in New Process
     // Use Mutex Lock for Safe Radio Access

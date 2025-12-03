@@ -107,6 +107,7 @@ static void pwm_tick_irq(void) {
 
 ///////////////////////////////////////////////////////////////////////
  int speaker_run() {
+    audio_mode_t last = AUDIO_IDLE;
     for (;;) {
         uint8_t request_buf[1];
         request_buf[0] = 0x07; // Request all data
@@ -131,7 +132,7 @@ static void pwm_tick_irq(void) {
             want = AUDIO_HUMID;
         } else if (pressure_kpa <= PRESSURE_KPA_THRESHOLD_LOW) {
             want = AUDIO_PRESSURE;
-        } else if (temp_c >= TEMP_F_THRESHOLD_HIGH) {
+        } else if (temp_f >= TEMP_F_THRESHOLD_HIGH) {
             want = AUDIO_TEMP;
         } else {
             want = AUDIO_IDLE;
