@@ -9,8 +9,6 @@
 #include "../include/radio.h"
 
 // Protocol constants
-#define PKT_TYPE_DATA   0x01
-#define PKT_TYPE_ACK    0x02
 #define ACK_TIMEOUT_MS  150
 
 static uint8_t tx_seq_num = 0;

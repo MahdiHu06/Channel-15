@@ -10,6 +10,9 @@
 #define RADIO_SPI_CSN_PIN 29
 #define RADIO_SPI_RESET_PIN 33
 
+#define PKT_TYPE_DATA   0x01
+#define PKT_TYPE_ACK    0x02
+
 void resetRadio(uint resetPin);
 void initRadio(int sckPin, int misoPin, int mosiPin, int csnPin, int resetPin);
 void writeRegister(uint CS, uint8_t addr, uint8_t value);
