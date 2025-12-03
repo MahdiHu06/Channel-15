@@ -1,3 +1,6 @@
+#include <stdio.h>
+#include <stdarg.h>
+#include <string.h>
 #include "pico/stdlib.h"
 #include "hardware/spi.h"
 #include "../include/radio.h"
@@ -51,24 +54,38 @@ int main() {
             printf("Invalid Packet Length\n");
             continue;
         } else {
-            if (response[0] & 0x01) {
+            uint8_t send_buf[13];
+            send_buf[0] = response[0];
+
+            int send_len = 1;
+
+            if ((response[0] & 0x07) == 0x07) {
+                float temp = read_temp(bme_addr);
+                float pressure = read_pressure(bme_addr);
+                float humidity = read_humidity(bme_addr);
+                memcpy(&send_buf[1],  &temp,     sizeof(float));
+                memcpy(&send_buf[5],  &pressure, sizeof(float));
+                memcpy(&send_buf[9],  &humidity, sizeof(float));
+                send_len = 13;
+            } else if (response[0] & 0x01) {
                 // Temperature Requested
-                measurement = read_temp(bme_addr);
+                float measurement = read_temp(bme_addr);
+                memcpy(&send_buf[1], &measurement, sizeof(float));
+                send_len = 5;
             } else if (response[0] & 0x02) {
                 // Pressure Requested
-                measurement = read_pressure(bme_addr);
+                float measurement = read_pressure(bme_addr);
+                memcpy(&send_buf[1], &measurement, sizeof(float));
+                send_len = 5;
             } else if (response[0] & 0x04) {
                 // Humidity Requested
-                measurement = read_humidity(bme_addr);
+                float measurement = read_humidity(bme_addr);
+                memcpy(&send_buf[1], &measurement, sizeof(float));
+                send_len = 5;
             } else {
                 printf("Invalid Measurement Request\n");
                 continue;
             }
-
-            // Send Measurement Back
-            uint8_t send_buf[5];
-            send_buf[0] = response[0];
-            memcpy(&send_buf[1], &measurement, sizeof(float));
 
             sendDataReliable(RADIO_SPI_CSN_PIN, RADIO_SPI_CSN_PIN, send_buf, 5);
         }

@@ -16,8 +16,8 @@
 void init_i2c();
 
 // Pin numbers for I2C
-uint i2c_SDA = 30;
-uint i2c_SCL = 31;
+uint i2c_SDA = 38;
+uint i2c_SCL = 39;
 i2c_inst_t *i2c = i2c1;
 
 #define BUFSIZE 32

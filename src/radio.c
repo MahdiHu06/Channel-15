@@ -45,8 +45,8 @@ void writeRegister(uint CS, uint8_t addr, uint8_t value) {
     gpio_put(CS, 0);
 
     uint8_t writeAddr = addr | 0x80;
-    spi_write_blocking(spi0, &writeAddr, 1);
-    spi_write_blocking(spi0, &value, 1);
+    spi_write_blocking(spi1, &writeAddr, 1);
+    spi_write_blocking(spi1, &value, 1);
 
     gpio_put(CS, 1);
 }
@@ -57,8 +57,8 @@ uint8_t readRegister(uint CS, uint8_t addr) {
 
     gpio_put(CS, 0);
 
-    spi_write_blocking(spi0, &readAddr, 1);
-    spi_read_blocking(spi0, 0, &data, 1);
+    spi_write_blocking(spi1, &readAddr, 1);
+    spi_read_blocking(spi1, 0, &data, 1);
 
     gpio_put(CS, 1);
 
@@ -147,11 +147,11 @@ void sendPacketRaw(uint CS, uint8_t *data, int length) {
     gpio_put(CS, 0);
     
     uint8_t fifoAddr = 0x00 | 0x80;
-    spi_write_blocking(spi0, &fifoAddr, 1);
+    spi_write_blocking(spi1, &fifoAddr, 1);
     
     uint8_t len8 = (uint8_t)length;
-    spi_write_blocking(spi0, &len8, 1);
-    spi_write_blocking(spi0, data, length);
+    spi_write_blocking(spi1, &len8, 1);
+    spi_write_blocking(spi1, data, length);
     
     gpio_put(CS, 1);
 
@@ -177,10 +177,10 @@ bool receivePacketRaw(uint CS, uint8_t *result, uint8_t *length, int timeout_ms)
             gpio_put(CS, 0);
 
             uint8_t fifoAddr = 0x00;
-            spi_write_blocking(spi0, &fifoAddr, 1);
+            spi_write_blocking(spi1, &fifoAddr, 1);
 
             uint8_t packetLength = 0;
-            spi_read_blocking(spi0, 0, &packetLength, 1);
+            spi_read_blocking(spi1, 0, &packetLength, 1);
 
             if (packetLength == 0 || packetLength > 64) {
                 gpio_put(CS, 1);
@@ -189,7 +189,7 @@ bool receivePacketRaw(uint CS, uint8_t *result, uint8_t *length, int timeout_ms)
             }
 
             *length = packetLength;
-            spi_read_blocking(spi0, 0, result, packetLength);
+            spi_read_blocking(spi1, 0, result, packetLength);
 
             gpio_put(CS, 1);
             return true;
@@ -210,10 +210,10 @@ bool receivePacketRaw_blocking(uint CS, uint8_t *result, uint8_t *length) {
             gpio_put(CS, 0);
 
             uint8_t fifoAddr = 0x00;
-            spi_write_blocking(spi0, &fifoAddr, 1);
+            spi_write_blocking(spi1, &fifoAddr, 1);
 
             uint8_t packetLength = 0;
-            spi_read_blocking(spi0, 0, &packetLength, 1);
+            spi_read_blocking(spi1, 0, &packetLength, 1);
 
             if (packetLength == 0 || packetLength > 64) {
                 gpio_put(CS, 1);
@@ -222,7 +222,7 @@ bool receivePacketRaw_blocking(uint CS, uint8_t *result, uint8_t *length) {
             }
 
             *length = packetLength;
-            spi_read_blocking(spi0, 0, result, packetLength);
+            spi_read_blocking(spi1, 0, result, packetLength);
 
             gpio_put(CS, 1);
             return true;
@@ -298,7 +298,7 @@ void checkRadio(int cs) {
     printf("\n");
 
     if (radio_v >= 0x21 && radio_v <= 0x25) {
-        prtinf("Radio Connected. Version: 0x%02X\n", radio_v);
+        printf("Radio Connected. Version: 0x%02X\n", radio_v);
     } else {
         printf("Radio Error. Read: 0x%02X\n", radio_v);
     }
