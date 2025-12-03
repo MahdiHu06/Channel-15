@@ -40,44 +40,36 @@ void liveDataInit(void) {
 }
 
 void liveDataUpdate(void) {
-    /*
-    Bit 0: Temperature
-    Bit 1: Pressure
-    Bit 2: Humidity
-    */
-
     uint8_t request_buf[1];
     request_buf[0] = 0x07; // Request all data
 
-    sendDataReliable(RADIO_SPI_CSN_PIN, RADIO_SPI_CSN_PIN, request_buf, 1);
+    if (!sendDataReliable(RADIO_SPI_CSN_PIN, RADIO_SPI_CSN_PIN, request_buf, 1)) {
+        printf("Failed to send request\n");
+        return; 
+    }
 
-    // Switch to receive mode
     startRadioReceive(RADIO_SPI_CSN_PIN);
 
     uint8_t response_buf[64];
     uint8_t response_len;
     
-    // Use non-blocking with timeout (e.g., 500ms)
-    if (!receivePacketRaw(RADIO_SPI_CSN_PIN, response_buf, &response_len, 500)) {
+    if (!receivePacketRaw(RADIO_SPI_CSN_PIN, response_buf, &response_len, 200)) {
         printf("No response from sensor\n");
         return;
     }
 
     printf("Got response: len=%d, type=0x%02X\n", response_len, response_buf[0]);
 
-    // Check if it's a DATA packet
     if (response_len < 2 || response_buf[0] != PKT_TYPE_DATA) {
         printf("Invalid response packet type: 0x%02X\n", response_buf[0]);
         return;
     }
 
-    // Strip the 2-byte header (type + seq)
     uint8_t *payload = &response_buf[2];
     uint8_t payload_len = response_len - 2;
 
     printf("Payload len=%d, request_type=0x%02X\n", payload_len, payload[0]);
 
-    // Check payload: 1 byte request type + 12 bytes (3 floats)
     if (payload_len != 13 || payload[0] != 0x07) {
         printf("Unexpected payload: len=%d, type=0x%02X\n", payload_len, payload[0]);
         return;

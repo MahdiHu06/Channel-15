@@ -11,7 +11,6 @@
 #define ACK_TIMEOUT_MS  150
 
 static uint8_t tx_seq_num = 0;
-static uint8_t last_rx_seq = 255;
 
 void resetRadio(uint resetPin) {
     gpio_set_function(resetPin, GPIO_FUNC_SIO);
@@ -40,21 +39,14 @@ void initRadio(int sckPin, int misoPin, int mosiPin, int csnPin, int resetPin) {
 
 void writeRegister(uint CS, uint8_t addr, uint8_t value) {
     gpio_put(CS, 0);
-    sleep_us(1);  // Add small delay
+    sleep_us(1);
 
     uint8_t writeAddr = addr | 0x80;
     spi_write_blocking(RADIO_SPI_INSTANCE, &writeAddr, 1);
     spi_write_blocking(RADIO_SPI_INSTANCE, &value, 1);
 
-    sleep_us(1);  // Add small delay
+    sleep_us(1);
     gpio_put(CS, 1);
-    
-    // Verify write
-    uint8_t readback = readRegister(CS, addr);
-    if (readback != value && addr != 0x28) {  // 0x28 is FIFO, can't read back
-        printf("REG WRITE FAIL: addr=0x%02X, wrote=0x%02X, read=0x%02X\n", 
-               addr, value, readback);
-    }
 }
 
 uint8_t readRegister(uint CS, uint8_t addr) {
@@ -82,7 +74,7 @@ void configRadio(uint CS) {
     // Data modulation: Packet mode, FSK, Gaussian filter BT=1.0
     writeRegister(CS, 0x02, 0x00);
 
-    // Bitrate: 4.8 kbps (faster than 1.2 kbps)
+    // Bitrate: 4.8 kbps
     writeRegister(CS, 0x03, 0x1A);
     writeRegister(CS, 0x04, 0x0B);
 
@@ -107,7 +99,7 @@ void configRadio(uint CS) {
     // LNA: max gain
     writeRegister(CS, 0x18, 0x08);
 
-    // RxBw: 62.5 kHz (wider for faster bitrate)
+    // RxBw: 62.5 kHz
     writeRegister(CS, 0x19, 0x42);
 
     // AFC Bw: 125 kHz
@@ -116,7 +108,7 @@ void configRadio(uint CS) {
     // RSSI threshold
     writeRegister(CS, 0x29, 0xE4);
 
-    // Preamble: 8 bytes (shorter for faster sync)
+    // Preamble: 8 bytes
     writeRegister(CS, 0x2C, 0x00);
     writeRegister(CS, 0x2D, 0x08);
 
@@ -139,7 +131,6 @@ void configRadio(uint CS) {
 }
 
 void sendPacketRaw(uint CS, uint8_t *data, int length) {
-    // Go to standby and clear FIFO
     writeRegister(CS, 0x01, 0x04);
     writeRegister(CS, 0x28, 0x10);
     
@@ -158,7 +149,6 @@ void sendPacketRaw(uint CS, uint8_t *data, int length) {
     
     printf("TX: Mode after TX start: 0x%02X\n", readRegister(CS, 0x01));
 
-    // Wait for PacketSent with timeout
     int timeout = 1000;
     while (!(readRegister(CS, 0x28) & 0x08)) {
         if (--timeout <= 0) {
@@ -176,13 +166,12 @@ void sendPacketRaw(uint CS, uint8_t *data, int length) {
 
 void startRadioReceive(uint CS) {
     printf("RX: Switching to RX mode...\n");
-    writeRegister(CS, 0x01, 0x04);  // Standby first
-    writeRegister(CS, 0x28, 0x10);  // Clear FIFO
-    writeRegister(CS, 0x01, 0x10);  // RX mode
+    writeRegister(CS, 0x01, 0x04);
+    writeRegister(CS, 0x28, 0x10);
+    writeRegister(CS, 0x01, 0x10);
     
-    // Wait for RX mode to be ready
     int timeout = 100;
-    while ((readRegister(CS, 0x27) & 0x80) == 0) {  // Wait for ModeReady
+    while ((readRegister(CS, 0x27) & 0x80) == 0) {
         if (--timeout <= 0) {
             printf("RX: ModeReady timeout!\n");
             break;
@@ -195,7 +184,6 @@ void startRadioReceive(uint CS) {
 }
 
 void sendAck(uint CS, uint8_t seq_num) {
-    // Wait for sender to switch to RX mode
     sleep_ms(15);
     
     uint8_t ack_packet[2];
@@ -214,7 +202,7 @@ bool receivePacketRaw(uint CS, uint8_t *result, uint8_t *length, int timeout_ms)
         
         if (irq2 & 0x04) {  // PayloadReady
             gpio_put(CS, 0);
-
+            
             uint8_t fifoAddr = 0x00;
             spi_write_blocking(RADIO_SPI_INSTANCE, &fifoAddr, 1);
 
@@ -271,64 +259,43 @@ bool receivePacketRaw_blocking(uint CS, uint8_t *result, uint8_t *length) {
     }
 }
 
-void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
+bool sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
     uint8_t packet[66];
     uint8_t response[64];
     uint8_t resp_len;
     
-    // Build packet
     packet[0] = PKT_TYPE_DATA;
     packet[1] = tx_seq_num;
     memcpy(&packet[2], payload, length);
     
     int total_len = length + 2;
-    int retry = 0;
+    int max_retries = 3;
 
     printf("TX: Sending seq %d (len=%d)\n", tx_seq_num, total_len);
     
-    while (true) {
-        // Send the packet
+    for (int retry = 0; retry < max_retries; retry++) {
         sendPacketRaw(CS_TX, packet, total_len);
         
         startRadioReceive(CS_RX);
         
-        // Wait for ACK with longer timeout
-        if (receivePacketRaw(CS_RX, response, &resp_len, 500)) {
-            printf("TX: Got response len=%d, type=0x%02X, seq=%d\n", 
-                   resp_len, response[0], resp_len >= 2 ? response[1] : 0);
-            
-            // Check if it's an ACK for our sequence number
+        if (receivePacketRaw(CS_RX, response, &resp_len, 100)) {
             if (resp_len >= 2 && 
                 response[0] == PKT_TYPE_ACK && 
                 response[1] == tx_seq_num) {
                 
                 tx_seq_num++;
-                if (retry > 0) {
-                    printf("TX: ACK for seq %d (%d retries)\n", tx_seq_num - 1, retry);
-                } else {
-                    printf("TX: ACK for seq %d\n", tx_seq_num - 1);
-                }
-                return;
-            } else {
-                printf("TX: Wrong ACK - expected seq %d, got type=0x%02X seq=%d\n",
-                       tx_seq_num, response[0], response[1]);
+                printf("TX: ACK for seq %d\n", tx_seq_num - 1);
+                return true;
             }
         }
         
-        retry++;
-        if (retry % 10 == 0) {
-            printf("TX: Retrying seq %d (%d attempts)\n", tx_seq_num, retry);
-            
-            // Every 50 retries, do a full radio reset
-            if (retry % 50 == 0) {
-                printf("TX: Resetting radio\n");
-                configRadio(CS_TX);
-                configRadio(CS_RX);
-            }
-        }
-        
-        sleep_ms(10 + (retry % 10) * 5);
+        printf("TX: Retry %d/%d for seq %d\n", retry + 1, max_retries, tx_seq_num);
+        sleep_ms(10);
     }
+    
+    printf("TX: Failed seq %d, giving up\n", tx_seq_num);
+    tx_seq_num++;
+    return false;
 }
 
 void checkRadio(int cs) {
