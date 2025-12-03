@@ -309,12 +309,14 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
 void sendResponse(uint CS, uint8_t *payload, int length) {
     uint8_t packet[66];
     
+    // Build packet (use same seq_num as request)
     packet[0] = PKT_TYPE_DATA;
-    packet[1] = last_rx_seq;
+    packet[1] = last_rx_seq;  // Echo the received sequence number
     memcpy(&packet[2], payload, length);
     
     sendPacketRaw(CS, packet, length + 2);
     
+    // Go back to receive mode
     startRadioReceive(CS);
 }
 

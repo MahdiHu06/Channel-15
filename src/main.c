@@ -95,8 +95,16 @@ int main() {
                         send_len = 5;
                     }
                     
-                    // Send response back
-                    sendDataReliable(RADIO_SPI_CSN_PIN, RADIO_SPI_CSN_PIN, send_buf, send_len);
+                    uint8_t response_packet[15];
+                    response_packet[0] = PKT_TYPE_DATA;
+                    response_packet[1] = seq_num;
+                    memcpy(&response_packet[2], send_buf, send_len);
+                    
+                    sendPacketRaw(RADIO_SPI_CSN_PIN, response_packet, send_len + 2);
+                    printf("TX: Sent response\n");
+                    
+                    // Restart receive mode
+                    startRadioReceive(RADIO_SPI_CSN_PIN);
                 }
             }
             
