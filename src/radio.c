@@ -40,12 +40,21 @@ void initRadio(int sckPin, int misoPin, int mosiPin, int csnPin, int resetPin) {
 
 void writeRegister(uint CS, uint8_t addr, uint8_t value) {
     gpio_put(CS, 0);
+    sleep_us(1);  // Add small delay
 
     uint8_t writeAddr = addr | 0x80;
     spi_write_blocking(RADIO_SPI_INSTANCE, &writeAddr, 1);
     spi_write_blocking(RADIO_SPI_INSTANCE, &value, 1);
 
+    sleep_us(1);  // Add small delay
     gpio_put(CS, 1);
+    
+    // Verify write
+    uint8_t readback = readRegister(CS, addr);
+    if (readback != value && addr != 0x28) {  // 0x28 is FIFO, can't read back
+        printf("REG WRITE FAIL: addr=0x%02X, wrote=0x%02X, read=0x%02X\n", 
+               addr, value, readback);
+    }
 }
 
 uint8_t readRegister(uint CS, uint8_t addr) {
@@ -70,16 +79,16 @@ void configRadio(uint CS) {
     // Clear FIFO
     writeRegister(CS, 0x28, 0x10);
 
-    // Data modulation: Packet mode, FSK, Gaussian filter BT=0.5 (better for range)
-    writeRegister(CS, 0x02, 0x02);
+    // Data modulation: Packet mode, FSK, Gaussian filter BT=1.0
+    writeRegister(CS, 0x02, 0x00);
 
-    // Bitrate: 1.2 kbps (slower = better range)
-    writeRegister(CS, 0x03, 0x68);
-    writeRegister(CS, 0x04, 0x2B);
+    // Bitrate: 4.8 kbps (faster than 1.2 kbps)
+    writeRegister(CS, 0x03, 0x1A);
+    writeRegister(CS, 0x04, 0x0B);
 
-    // Frequency deviation: 5 kHz (narrower = better sensitivity)
-    writeRegister(CS, 0x05, 0x00);
-    writeRegister(CS, 0x06, 0x52);
+    // Frequency deviation: 25 kHz
+    writeRegister(CS, 0x05, 0x01);
+    writeRegister(CS, 0x06, 0x9A);
 
     // Frequency: 915 MHz
     writeRegister(CS, 0x07, 0xE4);
@@ -89,39 +98,34 @@ void configRadio(uint CS) {
     // PA config - max power (+20 dBm with PA_BOOST)
     writeRegister(CS, 0x11, 0x9F);
 
-    // PA ramp time - slower ramp for cleaner signal
+    // PA ramp time
     writeRegister(CS, 0x12, 0x09);
 
     // OCP - enable with higher limit
     writeRegister(CS, 0x13, 0x2B);
 
-    // LNA: max gain, no AGC (fixed high gain)
+    // LNA: max gain
     writeRegister(CS, 0x18, 0x08);
 
-    // RxBw: 10.4 kHz (narrower = better sensitivity)
-    writeRegister(CS, 0x19, 0x55);
+    // RxBw: 62.5 kHz (wider for faster bitrate)
+    writeRegister(CS, 0x19, 0x42);
 
-    // AFC Bw: 20.8 kHz
-    writeRegister(CS, 0x1A, 0x4A);
+    // AFC Bw: 125 kHz
+    writeRegister(CS, 0x1A, 0x42);
 
-    // AFC auto on, auto clear
-    writeRegister(CS, 0x1E, 0x2C);
+    // RSSI threshold
+    writeRegister(CS, 0x29, 0xE4);
 
-    // RSSI threshold - very sensitive
-    writeRegister(CS, 0x29, 0xFF);
-
-    // Preamble: 64 bytes (longer = more reliable sync)
+    // Preamble: 8 bytes (shorter for faster sync)
     writeRegister(CS, 0x2C, 0x00);
-    writeRegister(CS, 0x2D, 0x40);
+    writeRegister(CS, 0x2D, 0x08);
 
-    // Sync config: on, 4 bytes, allow 1 bit error
-    writeRegister(CS, 0x2E, 0x99);
+    // Sync config: on, 2 bytes
+    writeRegister(CS, 0x2E, 0x88);
     writeRegister(CS, 0x2F, 0x2D);
     writeRegister(CS, 0x30, 0xD4);
-    writeRegister(CS, 0x31, 0x2D);
-    writeRegister(CS, 0x32, 0xD4);
 
-    // Packet config 1: Variable length, CRC ON, CRC whitening
+    // Packet config 1: Variable length, CRC ON
     writeRegister(CS, 0x37, 0x90);
 
     // Payload length max
@@ -132,28 +136,6 @@ void configRadio(uint CS) {
 
     // Packet config 2: auto RX restart
     writeRegister(CS, 0x3D, 0x12);
-
-    // Sensitivity boost (improves RX sensitivity by ~3 dB)
-    writeRegister(CS, 0x58, 0x2D);
-
-    // High sensitivity mode
-    writeRegister(CS, 0x6F, 0x30);
-}
-
-void startRadioReceive(uint CS) {
-    writeRegister(CS, 0x01, 0x04);  // Standby first
-    writeRegister(CS, 0x28, 0x10);  // Clear FIFO
-    writeRegister(CS, 0x01, 0x10);  // RX mode
-    
-    // Wait for RX mode to be ready
-    int timeout = 100;
-    while ((readRegister(CS, 0x27) & 0x80) == 0) {  // Wait for ModeReady
-        if (--timeout <= 0) {
-            printf("RX: ModeReady timeout!\n");
-            break;
-        }
-        sleep_us(100);
-    }
 }
 
 void sendPacketRaw(uint CS, uint8_t *data, int length) {
@@ -173,15 +155,55 @@ void sendPacketRaw(uint CS, uint8_t *data, int length) {
     gpio_put(CS, 1);
 
     writeRegister(CS, 0x01, 0x0C);
+    
+    printf("TX: Mode after TX start: 0x%02X\n", readRegister(CS, 0x01));
 
     // Wait for PacketSent with timeout
     int timeout = 1000;
     while (!(readRegister(CS, 0x28) & 0x08)) {
-        if (--timeout <= 0) break;
+        if (--timeout <= 0) {
+            printf("TX: PacketSent TIMEOUT!\n");
+            break;
+        }
         sleep_ms(1);
     }
+    
+    printf("TX: PacketSent after %d ms, irq2=0x%02X\n", 1000 - timeout, readRegister(CS, 0x28));
 
     writeRegister(CS, 0x01, 0x04);
+    printf("TX: Mode after standby: 0x%02X\n", readRegister(CS, 0x01));
+}
+
+void startRadioReceive(uint CS) {
+    printf("RX: Switching to RX mode...\n");
+    writeRegister(CS, 0x01, 0x04);  // Standby first
+    writeRegister(CS, 0x28, 0x10);  // Clear FIFO
+    writeRegister(CS, 0x01, 0x10);  // RX mode
+    
+    // Wait for RX mode to be ready
+    int timeout = 100;
+    while ((readRegister(CS, 0x27) & 0x80) == 0) {  // Wait for ModeReady
+        if (--timeout <= 0) {
+            printf("RX: ModeReady timeout!\n");
+            break;
+        }
+        sleep_us(100);
+    }
+    
+    uint8_t mode = readRegister(CS, 0x01);
+    printf("RX: Mode is now 0x%02X (should be 0x10)\n", mode);
+}
+
+void sendAck(uint CS, uint8_t seq_num) {
+    // Wait for sender to switch to RX mode
+    sleep_ms(15);
+    
+    uint8_t ack_packet[2];
+    ack_packet[0] = PKT_TYPE_ACK;
+    ack_packet[1] = seq_num;
+    
+    printf("TX: Sending ACK for seq %d\n", seq_num);
+    sendPacketRaw(CS, ack_packet, 2);
 }
 
 bool receivePacketRaw(uint CS, uint8_t *result, uint8_t *length, int timeout_ms) {
@@ -235,7 +257,7 @@ bool receivePacketRaw_blocking(uint CS, uint8_t *result, uint8_t *length) {
             if (packetLength == 0 || packetLength > 64) {
                 gpio_put(CS, 1);
                 startRadioReceive(CS);
-                continue; // Try again
+                continue;
             }
 
             *length = packetLength;
@@ -247,14 +269,6 @@ bool receivePacketRaw_blocking(uint CS, uint8_t *result, uint8_t *length) {
 
         sleep_ms(1);
     }
-}
-
-void sendAck(uint CS, uint8_t seq_num) {
-    uint8_t ack_packet[2];
-    ack_packet[0] = PKT_TYPE_ACK;
-    ack_packet[1] = seq_num;
-    
-    sendPacketRaw(CS, ack_packet, 2);
 }
 
 void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
@@ -278,8 +292,8 @@ void sendDataReliable(uint CS_TX, uint CS_RX, uint8_t *payload, int length) {
         
         startRadioReceive(CS_RX);
         
-        // Wait for ACK with shorter timeout
-        if (receivePacketRaw(CS_RX, response, &resp_len, 100)) {
+        // Wait for ACK with longer timeout
+        if (receivePacketRaw(CS_RX, response, &resp_len, 500)) {
             printf("TX: Got response len=%d, type=0x%02X, seq=%d\n", 
                    resp_len, response[0], resp_len >= 2 ? response[1] : 0);
             

@@ -51,51 +51,62 @@ void liveDataUpdate(void) {
 
     sendDataReliable(RADIO_SPI_CSN_PIN, RADIO_SPI_CSN_PIN, request_buf, 1);
 
-    uint8_t response_buf[13];
+    // Switch to receive mode
+    startRadioReceive(RADIO_SPI_CSN_PIN);
+
+    uint8_t response_buf[64];
     uint8_t response_len;
-    
     
     // Use non-blocking with timeout (e.g., 500ms)
     if (!receivePacketRaw(RADIO_SPI_CSN_PIN, response_buf, &response_len, 500)) {
-        // No response received - display error or keep old values
         printf("No response from sensor\n");
         return;
     }
 
-    // Check if it's a DATA packet and strip header
+    printf("Got response: len=%d, type=0x%02X\n", response_len, response_buf[0]);
+
+    // Check if it's a DATA packet
     if (response_len < 2 || response_buf[0] != PKT_TYPE_DATA) {
-        printf("Invalid response packet\n");
+        printf("Invalid response packet type: 0x%02X\n", response_buf[0]);
         return;
     }
 
+    // Strip the 2-byte header (type + seq)
     uint8_t *payload = &response_buf[2];
     uint8_t payload_len = response_len - 2;
 
-    float pressure = 0;
-    float temp = 0;
-    float humidity = 0;
-    if (response_len == 13 && response_buf[0] == 0x07) {
-        memcpy(&temp,     &response_buf[1],  sizeof(float));
-        memcpy(&pressure, &response_buf[5],  sizeof(float));
-        memcpy(&humidity, &response_buf[9],  sizeof(float));
-    } else {
-        printf("Unexpected payload length: %d\n", payload_len);
+    printf("Payload len=%d, request_type=0x%02X\n", payload_len, payload[0]);
+
+    // Check payload: 1 byte request type + 12 bytes (3 floats)
+    if (payload_len != 13 || payload[0] != 0x07) {
+        printf("Unexpected payload: len=%d, type=0x%02X\n", payload_len, payload[0]);
         return;
     }
 
+    float temp = 0;
+    float pressure = 0;
+    float humidity = 0;
+    
+    memcpy(&temp,     &payload[1],  sizeof(float));
+    memcpy(&pressure, &payload[5],  sizeof(float));
+    memcpy(&humidity, &payload[9],  sizeof(float));
+
+    printf("Temp: %.2f, Pressure: %.2f, Humidity: %.2f\n", temp, pressure, humidity);
+
+    // Update display
     LCD_DrawFillRectangle(10, 40, 240, 70, 0x0000);
     char pressureStr[16];
-    sprintf(pressureStr, "%d hPa", pressure);
+    sprintf(pressureStr, "%.1f hPa", pressure);
     LCD_DrawString(10, 40, 0xFFFF, 0x0000, pressureStr, 16, 1);
 
     LCD_DrawFillRectangle(10, 140, 240, 170, 0x0000);
     char tempStr[16];
-    sprintf(tempStr, "%d F", temp);
+    sprintf(tempStr, "%.1f F", temp);
     LCD_DrawString(10, 140, 0xFFFF, 0x0000, tempStr, 16, 1);
 
     LCD_DrawFillRectangle(10, 240, 240, 270, 0x0000);
     char humidityStr[16];
-    sprintf(humidityStr, "%d%%", humidity);
+    sprintf(humidityStr, "%.1f%%", humidity);
     LCD_DrawString(10, 240, 0xFFFF, 0x0000, humidityStr, 16, 1);
 }
 
