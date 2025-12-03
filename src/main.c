@@ -43,6 +43,7 @@ int main() {
         
         receivePacketRaw_blocking(RADIO_SPI_CSN_PIN, response, &resp_len);
         printf("Received Packet of Length %d\n", resp_len);
+        printf("Request Type: 0x%02X\n", response[0]);
 
         // Request Router Based on Measurement Type and Unit
         /*
