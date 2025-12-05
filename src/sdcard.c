@@ -413,11 +413,12 @@ FRESULT log_data_csv(const char *filename, int loggedData[10][3]) {
 
     printf("log: start...\n");
 
-    // Always mount here
-    fr = f_mount(&fs_storage, "", 1);
-    if (fr != FR_OK) {
-        print_error(fr, "mount");
-        return fr;
+    if (fs_storage.id == 0) {
+        fr = f_mount(&fs_storage, "", 1);
+        if (fr != FR_OK) {
+            print_error(fr, "mount");
+            return fr;
+        }
     }
 
     printf("log: mounted\n");
@@ -461,7 +462,7 @@ FRESULT log_data_csv(const char *filename, int loggedData[10][3]) {
     printf("log: opening file for write\n");
 
     // Reopen file truncating old content
-    fr = f_open(&fil, filename, FA_WRITE | FA_CREATE_ALWAYS);
+    fr = f_open(&fil, "log.tmp", FA_WRITE | FA_CREATE_ALWAYS);
     if (fr != FR_OK) {
         print_error(fr, "f_open_write");
         return fr;
@@ -492,10 +493,50 @@ FRESULT log_data_csv(const char *filename, int loggedData[10][3]) {
 cleanup:
     f_sync(&fil);
     f_close(&fil);
+    f_unlink(filename);
+    f_rename("log.tmp", filename);
 
 
 
     printf("log: done!\n");
 
     return fr;
+}
+
+int fetch_data_csv(const char *filename, int data[][3], int maxRows) {
+    FIL fil;
+    char line[64];
+    FRESULT fr;
+    int count = 0;
+    
+    // Mount if needed
+    if (fs_storage.id == 0) {
+        fr = f_mount(&fs_storage, "", 1);
+        if (fr != FR_OK) {
+            print_error(fr, "mount");
+            return -1;
+        }
+    }
+    
+    fr = f_open(&fil, filename, FA_READ);
+    if (fr != FR_OK) {
+        if (fr == FR_NO_FILE) {
+            return 0;
+        }
+        print_error(fr, filename);
+        return -1;
+    }
+    
+    while (f_gets(line, sizeof(line), &fil) && count < maxRows) {
+        int a, b, c;
+        if (sscanf(line, "%d,%d,%d", &a, &b, &c) == 3) {
+            data[count][0] = a;
+            data[count][1] = b;
+            data[count][2] = c;
+            count++;
+        }
+    }
+    
+    f_close(&fil);
+    return count;
 }

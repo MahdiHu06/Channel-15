@@ -8,17 +8,15 @@
 
 /*******************************************************************/
 
-#define SD_MISO 8
-#define SD_CS   9
-#define SD_SCK  10
-#define SD_MOSI 11
-
-
+#define SD_MISO 32
+#define SD_CS   33
+#define SD_SCK  34
+#define SD_MOSI 35
 
 /*******************************************************************/
 
 
-#define SPI_INST spi1
+#define SPI_INST spi0
 
 void init_spi_sdcard() {
     // Initialize SPI at 400 KHz for SD card initialization
@@ -98,6 +96,8 @@ int main() {
     printf("Initializing SD Card SPI...\n");
     init_sdcard_io();
 
+    sleep_ms(500);
+
     // Dummy 10x3 logged data
     int dummyData[10][3] = {
         {10, 20, 30},
@@ -121,11 +121,18 @@ int main() {
         printf("Logging failed: %d\n", fr);
     }
 
-    /*
-    printf("Starting command shell...\n");
-    // Start command shell (this will call display_init())
-    command_shell();
-    */
+    int readData[20][3];
+    int rowsRead = fetch_data_csv("log.csv", readData, 20);
+    printf("Read %d rows\n", rowsRead);
+    for (int i = 0; i < rowsRead; i++) {
+        printf("Row %2d: %d, %d, %d\n", i + 1, readData[i][0], readData[i][1], readData[i][2]);
+    }
+
+
+    // printf("Starting command shell...\n");
+    // // Start command shell (this will call display_init())
+    // command_shell();
+
 
     for(;;);
 }

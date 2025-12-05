@@ -5,7 +5,7 @@
 #include "diskio.h"		/* Declarations of disk functions */
 #include <stdio.h>
 
-spi_inst_t *sd = spi1; // the SPI interface to use for the SD card
+spi_inst_t *sd = spi0; // the SPI interface to use for the SD card
 
 // Weak definitions for the functions that must be implemented elsewhere
 // to allow the SPI interface for the SD card to work.
@@ -143,22 +143,43 @@ DSTATUS disk_initialize (
     int count = 0;
     restart:
     count++;
-    if (count > 1000)
+    printf("disk_initialize: attempt %d\n", count);
+    if (count > 10) {
+        printf("disk_initialize: giving up after %d attempts\n", count);
         return STA_NOINIT;
+    }
     init_sdcard_io();
-    // Catch the case that this is not implemented yet and return error.
     // Check if the SPI peripheral has been initialized (enabled).
-    if (!(spi_get_hw(sd)->cr1 & SPI_SSPCR1_SSE_BITS))
+    if (!(spi_get_hw(sd)->cr1 & SPI_SSPCR1_SSE_BITS)) {
+        printf("disk_initialize: SPI not enabled!\n");
         return RES_NOTRDY;
-    disable_sdcard();
-    sdcard_init_clock();
-    sdcard_io_high_speed();
-    spi_clear_rxfifo(sd);
+    }
+    
+    // IMPORTANT: Send 80+ clock pulses with CS HIGH to initialize card
+    disable_sdcard();  // CS high
+    sleep_ms(10);      // Let card power stabilize
+    
+    // Send at least 74 clock pulses (we send 80) with CS HIGH
+    for(int i = 0; i < 10; i++) {
+        uint8_t dummy = 0xFF;
+        spi_write_blocking(sd, &dummy, 1);
+    }
+    
+    // Now select the card and send CMD0
     enable_sdcard();
+    sleep_us(100);  // Small delay after selecting
+    
     value = sdcard_cmd(0, 0x00000000, 0x95); // Go to idle state
-    if (value != 1)
+    printf("disk_initialize: CMD0 response = 0x%02X (expect 0x01)\n", value);
+    
+    if (value != 1) {
+        disable_sdcard();
         goto restart;
+    }
+
     disable_sdcard();
+
+    sdcard_io_high_speed();
 
     enable_sdcard();
     value = sdcard_cmd(8, 0x000001aa, 0x87); // Check voltage range

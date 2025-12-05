@@ -17,5 +17,6 @@ void restart(int argc, char *argv[]);
 
 
 FRESULT log_data_csv(const char *filename, int loggedData[10][3]);
+int fetch_data_csv(const char *filename, int data[][3], int maxRows);
 
 #endif
