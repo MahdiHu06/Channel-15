@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include "../include/views.h"
 #include "../include/radio.h"
+#include "../include/speaker.h"
+#include "pico/multicore.h"
 
 // TODO: Confirm pin numbers
 #define PIN_SDI    15
@@ -55,34 +57,6 @@ int main() {
     
     startRadioReceive(RADIO_SPI_CSN_PIN);
 
-    // Init Pins for SD
-    // Config SD?
-
-    // Init Pins for Speaker
-    // Config Speaker?
-    // gpio_set_function(36, GPIO_FUNC_PWM);
-    // spk_slice = pwm_gpio_to_slice_num(36);
-    // spk_chan  = pwm_gpio_to_channel(36);
-    // pwm_hw->slice[spk_slice].csr &= ~PWM_CH0_CSR_DIVMODE_BITS;
-    // // 125MHz/125=1MHz
-    // pwm_hw->slice[spk_slice].div = (125 << PWM_CH0_DIV_INT_LSB);
-    // pwm_hw->slice[spk_slice].top = 1000 - 1;
-    // pwm_set_chan_level(spk_slice, spk_chan, 0);
-    // pwm_set_enabled(spk_slice, true);
-    // gpio_set_function(37, GPIO_FUNC_PWM);
-    // tick_slice = pwm_gpio_to_slice_num(37);
-    // pwm_set_clkdiv(tick_slice, 125);
-    // pwm_set_wrap(tick_slice, 999);
-    // pwm_clear_irq(tick_slice);
-    // pwm_set_irq_enabled(tick_slice, true);
-    // irq_set_exclusive_handler(PWM_IRQ_WRAP_0, pwm_tick_irq);
-    // irq_set_enabled(PWM_IRQ_WRAP_0, true);
-    // pwm_set_enabled(tick_slice, true);
-    // uart_puts_string("READY TO READ...");
-
-    // Start Async Measurements in New Process
-    // Use Mutex Lock for Safe Radio Access
-
     // Main Loop
     typedef enum {
         STATE_MENU,
@@ -107,6 +81,8 @@ int main() {
 
     static uint64_t lastUpdate = 0;
     uint64_t now = time_us_64();
+
+    multicore_launch_core1(speakerLoop);
 
     while (true) {
         uint16_t keyevent = key_pop();

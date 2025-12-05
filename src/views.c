@@ -5,6 +5,7 @@
 #include "../include/helper.h"
 #include "../include/radio.h"
 #include "../include/lcd.h"
+#include <inttypes.h>
 
 void menu(uint8_t highlight) {
     LCD_Clear(0x0000);
@@ -23,19 +24,74 @@ void menu(uint8_t highlight) {
 void liveDataInit(void) {
     LCD_Clear(0x0000);
 
+    int8_t request_buf[1];
+    request_buf[0] = 0x07; // Request all data
+
+    int maxAttempts = 6;
+
+    uint8_t payload[64];
+    float temp = 0;
+    float pressure = 0;
+    float humidity = 0;
+
+    for (int attempt = 0; attempt < maxAttempts; attempt++) {
+        if (!sendDataReliable(RADIO_SPI_CSN_PIN, RADIO_SPI_CSN_PIN, request_buf, 1)) {
+            printf("Failed to send request (attempt %d/%d)\n", attempt + 1, maxAttempts);
+            continue;
+        }
+
+        startRadioReceive(RADIO_SPI_CSN_PIN);
+
+        sleep_ms(500);
+
+        uint8_t response_buf[64];
+        uint8_t response_len;
+        
+        if (!receivePacketRaw(RADIO_SPI_CSN_PIN, response_buf, &response_len, 500)) {
+            printf("No response from sensor (attempt %d/%d)\n", attempt + 1, maxAttempts);
+            continue;
+        }
+
+        printf("Got response: len=%d, type=0x%02X\n", response_len, response_buf[0]);
+
+        if (response_len < 2 || response_buf[0] != PKT_TYPE_DATA) {
+            printf("Invalid response packet type: 0x%02X (attempt %d/%d)\n", 
+                   response_buf[0], attempt + 1, maxAttempts);
+            continue;
+        }
+
+        uint8_t *payload = &response_buf[2];
+        uint8_t payload_len = response_len - 2;
+
+        printf("Payload len=%d, request_type=0x%02X\n", payload_len, payload[0]);
+
+        if (payload_len != 13 || payload[0] != 0x07) {
+            printf("Unexpected payload: len=%d, type=0x%02X (attempt %d/%d)\n", 
+                   payload_len, payload[0], attempt + 1, maxAttempts);
+            continue;
+        }
+
+        memcpy(&temp, &payload[1],  sizeof(float));
+        memcpy(&pressure, &payload[5],  sizeof(float));
+        memcpy(&humidity, &payload[9],  sizeof(float));
+        break;
+    }
+
+    printf("Temp: %.2f, Pressure: %.2f, Humidity: %.2f\n", temp, pressure, humidity);
+
     LCD_DrawString(10, 0, 0xFFFF, 0x0000, "Pressure", 16, 1);
     char pressureStr[16];
-    sprintf(pressureStr, "%d hPa", randomFloat(950, 1050));
+    sprintf(pressureStr, "%.1f hPa", pressure);
     LCD_DrawString(10, 40, 0xFFFF, 0x0000, pressureStr, 16, 1);
 
     LCD_DrawString(10, 100, 0xFFFF, 0x0000, "Temperature", 16, 1);
     char tempStr[16];
-    sprintf(tempStr, "%d F", randomFloat(-115, 115));
+    sprintf(tempStr, "%.1f F", temp);
     LCD_DrawString(10, 140, 0xFFFF, 0x0000, tempStr, 16, 1);
 
     LCD_DrawString(10, 200, 0xFFFF, 0x0000, "Humidity", 16, 1);
     char humidityStr[16];
-    sprintf(humidityStr, "%d%%", randomFloat(0, 100));
+    sprintf(humidityStr, "%.1f%%", humidity);
     LCD_DrawString(10, 240, 0xFFFF, 0x0000, humidityStr, 16, 1);
 }
 
@@ -53,7 +109,7 @@ void liveDataUpdate(void) {
     uint8_t response_buf[64];
     uint8_t response_len;
     
-    if (!receivePacketRaw(RADIO_SPI_CSN_PIN, response_buf, &response_len, 200)) {
+    if (!receivePacketRaw(RADIO_SPI_CSN_PIN, response_buf, &response_len, 500)) {
         printf("No response from sensor\n");
         return;
     }
