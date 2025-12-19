@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include "../include/lcd.h"
+#include "../include/shared.h"
 
 void nano_wait(int t);
 
@@ -319,6 +320,7 @@ void LCD_SetWindow(uint16_t xStart, uint16_t yStart, uint16_t xEnd, uint16_t yEn
 //===========================================================================
 void LCD_Clear(u16 Color)
 {
+    spi1_lock();
     lcddev.select(1);
     unsigned int i,m;
     LCD_SetWindow(0,0,lcddev.width-1,lcddev.height-1);
@@ -332,6 +334,7 @@ void LCD_Clear(u16 Color)
     }
     LCD_WriteData16_End();
     lcddev.select(0);
+    spi1_unlock();
 }
 
 //===========================================================================
@@ -347,9 +350,11 @@ static void _LCD_DrawPoint(u16 x, u16 y, u16 c)
 
 void LCD_DrawPoint(u16 x, u16 y, u16 c)
 {
+    spi1_lock();
     lcddev.select(1);
     _LCD_DrawPoint(x,y,c);
     lcddev.select(0);
+    spi1_unlock();
 }
 
 //===========================================================================
@@ -393,9 +398,11 @@ static void _LCD_DrawLine(u16 x1, u16 y1, u16 x2, u16 y2, u16 c)
 
 void LCD_DrawLine(u16 x1, u16 y1, u16 x2, u16 y2, u16 c)
 {
+    spi1_lock();
     lcddev.select(1);
     _LCD_DrawLine(x1,y1,x2,y2,c);
     lcddev.select(0);
+    spi1_unlock();
 }
 
 //===========================================================================
@@ -403,12 +410,14 @@ void LCD_DrawLine(u16 x1, u16 y1, u16 x2, u16 y2, u16 c)
 //===========================================================================
 void LCD_DrawRectangle(u16 x1, u16 y1, u16 x2, u16 y2, u16 c)
 {
+    spi1_lock();
     lcddev.select(1);
     _LCD_DrawLine(x1,y1,x2,y1,c);
     _LCD_DrawLine(x1,y1,x1,y2,c);
     _LCD_DrawLine(x1,y2,x2,y2,c);
     _LCD_DrawLine(x2,y1,x2,y2,c);
     lcddev.select(0);
+    spi1_unlock();
 }
 
 //===========================================================================
@@ -434,9 +443,11 @@ static void _LCD_Fill(u16 sx,u16 sy,u16 ex,u16 ey,u16 color)
 //===========================================================================
 void LCD_DrawFillRectangle(u16 x1, u16 y1, u16 x2, u16 y2, u16 c)
 {
+    spi1_lock();
     lcddev.select(1);
     _LCD_Fill(x1,y1,x2,y2,c);
     lcddev.select(0);
+    spi1_unlock();
 }
 
 static void _draw_circle_8(int xc, int yc, int x, int y, u16 c)
@@ -457,6 +468,7 @@ static void _draw_circle_8(int xc, int yc, int x, int y, u16 c)
 //===========================================================================
 void LCD_Circle(u16 xc, u16 yc, u16 r, u16 fill, u16 c)
 {
+    spi1_lock();
     lcddev.select(1);
     int x = 0, y = r, yi, d;
     d = 3 - 2 * r;
@@ -489,6 +501,7 @@ void LCD_Circle(u16 xc, u16 yc, u16 r, u16 fill, u16 c)
         }
     }
     lcddev.select(0);
+    spi1_unlock();
 }
 
 //===========================================================================
@@ -496,11 +509,13 @@ void LCD_Circle(u16 xc, u16 yc, u16 r, u16 fill, u16 c)
 //===========================================================================
 void LCD_DrawTriangle(u16 x0,u16 y0,  u16 x1,u16 y1,  u16 x2,u16 y2, u16 c)
 {
+    spi1_lock();
     lcddev.select(1);
     _LCD_DrawLine(x0,y0,x1,y1,c);
     _LCD_DrawLine(x1,y1,x2,y2,c);
     _LCD_DrawLine(x2,y2,x0,y0,c);
     lcddev.select(0);
+    spi1_unlock();
 }
 
 static void _swap(u16 *a, u16 *b)
@@ -516,6 +531,7 @@ static void _swap(u16 *a, u16 *b)
 //===========================================================================
 void LCD_DrawFillTriangle(u16 x0,u16 y0, u16 x1,u16 y1, u16 x2,u16 y2, u16 c)
 {
+    spi1_lock();
     lcddev.select(1);
     u16 a, b, y, last;
     int dx01, dy01, dx02, dy02, dx12, dy12;
@@ -600,6 +616,7 @@ void LCD_DrawFillTriangle(u16 x0,u16 y0, u16 x1,u16 y1, u16 x2,u16 y2, u16 c)
         _LCD_Fill(a,y,b,y,c);
     }
     lcddev.select(0);
+    spi1_unlock();
 }
 
 // A 12x6 font
@@ -849,9 +866,11 @@ void _LCD_DrawChar(u16 x,u16 y,u16 fc, u16 bc, char num, u8 size, u8 mode)
 
 void LCD_DrawChar(u16 x,u16 y,u16 fc, u16 bc, char num, u8 size, u8 mode)
 {
+    spi1_lock();
     lcddev.select(1);
     _LCD_DrawChar(x,y,fc,bc,num,size,mode);
     lcddev.select(0);
+    spi1_unlock();
 }
 
 //===========================================================================
@@ -863,6 +882,7 @@ void LCD_DrawChar(u16 x,u16 y,u16 fc, u16 bc, char num, u8 size, u8 mode)
 //===========================================================================
 void LCD_DrawString(u16 x,u16 y, u16 fc, u16 bg, const char *p, u8 size, u8 mode)
 {
+    spi1_lock();
     lcddev.select(1);
     while((*p<='~')&&(*p>=' '))
     {
@@ -873,6 +893,7 @@ void LCD_DrawString(u16 x,u16 y, u16 fc, u16 bg, const char *p, u8 size, u8 mode
         p++;
     }
     lcddev.select(0);
+    spi1_unlock();
 }
 
 //===========================================================================
@@ -943,6 +964,7 @@ void _LCD_DrawCharRotated(u16 x, u16 y, u16 fc, u16 bc, char num, u8 size, u8 mo
 
 void LCD_DrawStringRotated(u16 x, u16 y, u16 fc, u16 bg, const char *p, u8 size, u8 mode)
 {
+    spi1_lock();
     lcddev.select(1);
     while((*p <= '~') && (*p >= ' '))
     {
@@ -953,4 +975,5 @@ void LCD_DrawStringRotated(u16 x, u16 y, u16 fc, u16 bg, const char *p, u8 size,
         p++;
     }
     lcddev.select(0);
+    spi1_unlock();
 }

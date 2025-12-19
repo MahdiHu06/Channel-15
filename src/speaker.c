@@ -11,6 +11,7 @@
 #include "pico/binary_info.h"
 #include "../include/radio.h"
 #include "../include/speaker.h"
+#include "../include/sdcard.h"
 
 #define BUFSIZE 32
 char serbuf[BUFSIZE];
@@ -245,6 +246,8 @@ void speakerLoop(void) {
     audio_mode_t last = AUDIO_IDLE;
 
     for (;;) {
+        sleep_ms(5000);
+
         uint8_t request_buf[1];
         request_buf[0] = 0x07; // Request all data
 
@@ -290,6 +293,8 @@ void speakerLoop(void) {
 
         printf("Temp: %.2f, Pressure: %.2f, Humidity: %.2f\n", temp, pressure, humidity);
 
+        save_measurement("meas.csv", (int)temp, (int)pressure, (int)humidity);
+
         audio_mode_t want = AUDIO_IDLE;
 
         if (humidity >= HUMIDITY_RH_THRESHOLD_HIGH) {
@@ -319,6 +324,7 @@ void speakerLoop(void) {
                 audio_stop();
             }
         }
-        sleep_ms(2000);
+
+
    }
 }

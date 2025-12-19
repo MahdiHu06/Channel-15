@@ -162,8 +162,18 @@ void historicalData(bool ticks, uint8_t viewType) {
     int32_t loggedData[10][3];
     int32_t predictedData[10][3];
 
-    generateRandomArray(loggedData, -100, 100);
-    generateRandomArray(predictedData, -100, 100);
+    // generateRandomArray(loggedData, -100, 100);
+    // generateRandomArray(predictedData, -100, 100);
+
+    int measRows = fetch_data_csv("meas.csv", loggedData, 10);
+    if (measRows < 0) {
+        printf("Failed to read meas.csv\n");
+    }
+ 
+    int predRows = fetch_data_csv("predict.csv", predictedData, 10);
+    if (predRows < 0) {
+        printf("Failed to read predict.csv\n");
+    }
 
     LCD_Clear(0x0000);
 
@@ -173,11 +183,11 @@ void historicalData(bool ticks, uint8_t viewType) {
 
     // Labels
     if (viewType == 0) {
-        LCD_DrawStringRotated(0, 205, 0xFFFF, 0x0000, "Pressure (hPa)", 16, 1);
-    } else if (viewType == 1) {
-        LCD_DrawStringRotated(0, 200, 0xFFFF, 0x0000, "Humidity (%)", 16, 1);
-    } else {
         LCD_DrawStringRotated(0, 180, 0xFFFF, 0x0000, "Temp (F)", 16, 1);
+    } else if (viewType == 1) {
+        LCD_DrawStringRotated(0, 205, 0xFFFF, 0x0000, "Pressure (hPa)", 16, 1);
+    } else {
+        LCD_DrawStringRotated(0, 200, 0xFFFF, 0x0000, "Humidity (%)", 16, 1);
     }
     LCD_DrawString(91, 299, 0xFFFF, 0x0000, "Time (min)", 16, 1);
 
@@ -208,6 +218,12 @@ void historicalData(bool ticks, uint8_t viewType) {
 
     int32_t range = yMax - yMin;
 
+    if (range == 0) {
+        range = 1;
+        yMin -= 1;
+        yMax += 1;
+    }
+    
     int32_t padding = range / 10;
     yMin -= padding;
     yMax += padding;
@@ -266,21 +282,23 @@ void historicalData(bool ticks, uint8_t viewType) {
 
     // Data Points
     int xZero = 44;
-    int yZero = 270;
+    int graphTop = 6;
+    int graphBottom = 276;
+    int graphHeight = graphBottom - graphTop;
 
     range = yMax - yMin;
 
     for (int i = 0; i < 9; i++) {
         int x1 = xZero + (i * 17);
-        int y1 = yOffset + yZero - ((loggedData[i][viewType] - yMin) * yZero / range);
+        int y1 = graphBottom - ((loggedData[i][viewType] - yMin) * graphHeight / range);
         int x2 = xZero + ((i + 1) * 17);
-        int y2 = yOffset + yZero - ((loggedData[i + 1][viewType] - yMin) * yZero / range);
+        int y2 = graphBottom - ((loggedData[i + 1][viewType] - yMin) * graphHeight / range);
         LCD_DrawLine(x1, y1, x2, y2, 0xF800);
 
         int px1 = xZero + (i * 17);
-        int py1 = yOffset + yZero - ((predictedData[i][viewType] - yMin) * yZero / range);
+        int py1 = graphBottom - ((predictedData[i][viewType] - yMin) * graphHeight / range);
         int px2 = xZero + ((i + 1) * 17);
-        int py2 = yOffset + yZero - ((predictedData[i + 1][viewType] - yMin) * yZero / range);
+        int py2 = graphBottom - ((predictedData[i + 1][viewType] - yMin) * graphHeight / range);
         LCD_DrawLine(px1, py1, px2, py2, 0x001F);
     }
 }

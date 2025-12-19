@@ -6,6 +6,8 @@
 #include "../include/radio.h"
 #include "../include/speaker.h"
 #include "pico/multicore.h"
+#include "../include/sdcard.h"
+#include "../include/shared.h"
 
 // TODO: Confirm pin numbers
 #define PIN_SDI    15
@@ -30,11 +32,16 @@ void init_spi_lcd() {
     // initialize SPI1 with 48 MHz clock
     gpio_set_function(PIN_SCK, GPIO_FUNC_SPI);
     gpio_set_function(PIN_SDI, GPIO_FUNC_SPI);
-    spi_init(spi1, 100 * 1000 * 1000);
+    spi_init(spi1, 12 * 1000 * 1000);
     spi_set_format(spi1, 8, SPI_CPOL_0, SPI_CPHA_0, SPI_MSB_FIRST);
 }
 
 int main() {
+    stdio_init_all();
+
+    // Initialize SPI1 mutex FIRST, before anything uses SPI1
+    spi1_init();
+    
     // Init Pins for Display
     init_spi_lcd();
 
@@ -46,8 +53,6 @@ int main() {
     keypad_init_pins();
     keypad_init_timer();
 
-    stdio_init_all();
-
     // Init Pins for Radio
     initRadio(RADIO_SPI_SCK_PIN, RADIO_SPI_MISO_RX_PIN, RADIO_SPI_MOSI_TX_PIN, RADIO_SPI_CSN_PIN, RADIO_SPI_RESET_PIN);
     // Config Radio
@@ -56,6 +61,38 @@ int main() {
     checkRadio(RADIO_SPI_CSN_PIN);
     
     startRadioReceive(RADIO_SPI_CSN_PIN);
+
+    // Init SD Card
+    init_spi_sdcard();
+
+     int predictedData[10][3] = {
+        {80, 105, 90},
+        {72, 95, 80},
+        {78, 102, 88},
+        {70, 97, 82},
+        {82, 108, 92},
+        {68, 93, 78},
+        {76, 100, 86},
+        {84, 110, 95},
+        {66, 90, 75},
+        {79, 103, 89}
+    };
+
+    printf("Calling log_data_csv...\n");
+    FRESULT fr = log_data_csv("predict.csv", predictedData);
+
+    if (fr == FR_OK) {
+        printf("Logging OK!\n");
+    } else {
+        printf("Logging failed: %d\n", fr);
+    }
+
+    int readData[20][3];
+    int rowsRead = fetch_data_csv("predict.csv", readData, 20);
+    printf("Read %d rows\n", rowsRead);
+    for (int i = 0; i < rowsRead; i++) {
+        printf("Row %2d: %d, %d, %d\n", i + 1, readData[i][0], readData[i][1], readData[i][2]);
+    }
 
     // Main Loop
     typedef enum {

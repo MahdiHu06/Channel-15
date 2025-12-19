@@ -5,8 +5,8 @@
 #define PRESSURE_KPA_THRESHOLD_LOW 80.0f //signals potential precipitation
 #define HUMIDITY_RH_THRESHOLD_HIGH 90.0f //level that indicates humidity is high
 
-#define PWM_PIN_A 10
-#define PWM_PIN_B 11
+#define PWM_PIN_A 30
+#define PWM_PIN_B 31
 
 typedef enum { AUDIO_IDLE=0, AUDIO_TEMP=1, AUDIO_PRESSURE=2, AUDIO_HUMID=3 } audio_mode_t;
 
